@@ -141,6 +141,14 @@ do PATH (portátil fixado e instalação da imagem). O wrapper agora seleciona
 explicitamente o primeiro resultado. O teste também cria dois comandos com
 o mesmo nome em diretórios distintos e exige a prioridade do primeiro PATH.
 
+O build https://ci.appveyor.com/project/capitv/openscreen/builds/54855317
+executou `99b566ad`, aprovou os quatro cenários no PowerShell 5.1 e concluiu
+`npm ci` (855 pacotes). A resposta `.sha256` de Rust veio como `byte[]` por seu
+Content-Type, fazendo `.Trim()` falhar antes da compilação. As respostas de
+checksum Node/Rust/Vulkan agora são decodificadas explicitamente como texto
+UTF-8 quando necessário; SHA-256 continua exigido. O teste cobre respostas
+textuais e binárias e o JSON de checksum Vulkan, sem usar a rede.
+
 ## Objetivo do usuário
 
 O usuário quer gravar a tela com a câmera do celular fornecida pelo Iriun Webcam. O OpenScreen lista a Iriun, mas, ao iniciar a gravação, informa um problema com a câmera; o vídeo resultante fica sem webcam. A causa ainda não foi confirmada. Não há diagnóstico JSON, mensagem técnica completa ou confirmação de que a prévia funcione.

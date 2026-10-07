@@ -6,12 +6,14 @@ $parseErrors = $null
 $buildScript = Join-Path $PSScriptRoot 'build-iriun-appveyor.ps1'
 $ast = [System.Management.Automation.Language.Parser]::ParseFile($buildScript, [ref]$tokens, [ref]$parseErrors)
 if ($parseErrors.Count -ne 0) { throw "Build script syntax errors: $parseErrors" }
-$wrapper = $ast.Find({
-    param($node)
-    $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Invoke-Checked'
-}, $true)
-if ($null -eq $wrapper) { throw 'The actual build wrapper was not found.' }
-Invoke-Expression $wrapper.Extent.Text
+foreach ($functionName in @('Invoke-Checked', 'ConvertTo-DownloadText')) {
+    $definition = $ast.Find({
+        param($node)
+        $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $functionName
+    }, $true)
+    if ($null -eq $definition) { throw "The actual build function $functionName was not found." }
+    Invoke-Expression $definition.Extent.Text
+}
 $shell = @('powershell.exe', 'pwsh.exe', 'pwsh') |
     ForEach-Object { Join-Path $PSHOME $_ } |
     Where-Object { Test-Path $_ } |
@@ -65,3 +67,15 @@ try {
     $env:PATH = $previousPath
     Remove-Item -Recurse -Force $testRoot
 }
+
+$checksumText = ('a' * 64) + "  rustup-init.exe`n"
+foreach ($content in @($checksumText, [Text.Encoding]::UTF8.GetBytes($checksumText))) {
+    $decoded = ConvertTo-DownloadText $content
+    if ($decoded -ne $checksumText -or ($decoded.Trim() -split '\s+')[0] -ne ('a' * 64)) {
+        throw 'A text/binary checksum response was not decoded correctly.'
+    }
+}
+$sdkJson = '{"sha":"' + ('b' * 64) + '"}'
+$decodedJson = ConvertTo-DownloadText ([Text.Encoding]::UTF8.GetBytes($sdkJson))
+if (($decodedJson | ConvertFrom-Json).sha -ne ('b' * 64)) { throw 'Binary SDK JSON response was not decoded correctly.' }
+Write-Host 'PASS: checksum text and binary responses preserve their digest'

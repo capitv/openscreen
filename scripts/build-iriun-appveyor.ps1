@@ -37,6 +37,14 @@ function Get-VerifiedDownload {
     }
 }
 
+function ConvertTo-DownloadText {
+    param([object] $Content)
+    # Windows PowerShell exposes application/octet-stream as byte[], including
+    # Rust's textual .sha256 response. Do not call string methods on each byte.
+    if ($Content -is [byte[]]) { return [Text.Encoding]::UTF8.GetString($Content) }
+    return [string] $Content
+}
+
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $toolRoot = 'C:\osc-tools'
 New-Item -ItemType Directory -Force $toolRoot | Out-Null
@@ -45,7 +53,8 @@ New-Item -ItemType Directory -Force $toolRoot | Out-Null
 $nodeVersion = (Get-Content .nvmrc -Raw).Trim().TrimStart('v')
 $nodeAsset = "node-v$nodeVersion-win-x64.zip"
 $nodeBase = "https://nodejs.org/dist/v$nodeVersion"
-$nodeChecksums = (Invoke-WebRequest -UseBasicParsing -Uri "$nodeBase/SHASUMS256.txt").Content
+$nodeResponse = Invoke-WebRequest -UseBasicParsing -Uri "$nodeBase/SHASUMS256.txt"
+$nodeChecksums = ConvertTo-DownloadText $nodeResponse.Content
 $nodeChecksumLine = @($nodeChecksums -split "`n" | Where-Object { $_.Trim().EndsWith("  $nodeAsset") })
 if ($nodeChecksumLine.Count -ne 1) { throw "Missing unique checksum for $nodeAsset" }
 Get-VerifiedDownload "$nodeBase/$nodeAsset" "$toolRoot/$nodeAsset" ($nodeChecksumLine[0] -split '\s+')[0]
@@ -68,7 +77,9 @@ if (-not (Test-Path $gitBash)) { throw 'The Windows image is missing Git Bash.' 
 $rustupExe = Join-Path $env:USERPROFILE '.cargo\bin\rustup.exe'
 if (-not (Test-Path $rustupExe)) {
     $rustupUrl = 'https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe'
-    $rustupSha = ((Invoke-WebRequest -UseBasicParsing -Uri "$rustupUrl.sha256").Content.Trim() -split '\s+')[0]
+    $rustupResponse = Invoke-WebRequest -UseBasicParsing -Uri "$rustupUrl.sha256"
+    $rustupChecksum = ConvertTo-DownloadText $rustupResponse.Content
+    $rustupSha = ($rustupChecksum.Trim() -split '\s+')[0]
     Get-VerifiedDownload $rustupUrl "$toolRoot/rustup-init.exe" $rustupSha
     Invoke-Checked "$toolRoot/rustup-init.exe" @('-y', '--profile', 'minimal', '--default-toolchain', 'stable')
 } else {
@@ -81,7 +92,9 @@ Invoke-Checked 'cargo.exe' @('--version')
 # Same prebuilt LunarG SDK as build-whisper-stt.yml; no CPU-only shortcut.
 $sdkVersion = '1.4.304.1'
 $sdkAsset = "VulkanSDK-$sdkVersion-Installer.exe"
-$sdkSha = (Invoke-RestMethod -Uri "https://sdk.lunarg.com/sdk/sha/$sdkVersion/windows/$sdkAsset.json").sha
+$sdkResponse = Invoke-WebRequest -UseBasicParsing -Uri "https://sdk.lunarg.com/sdk/sha/$sdkVersion/windows/$sdkAsset.json"
+$sdkChecksum = ConvertTo-DownloadText $sdkResponse.Content
+$sdkSha = ($sdkChecksum | ConvertFrom-Json).sha
 Get-VerifiedDownload "https://sdk.lunarg.com/sdk/download/$sdkVersion/windows/$sdkAsset" "$toolRoot/$sdkAsset" $sdkSha
 $env:VULKAN_SDK = "C:\VulkanSDK\$sdkVersion"
 $sdkInstaller = Start-Process -FilePath "$toolRoot/$sdkAsset" -ArgumentList @(
