@@ -38,6 +38,36 @@ Resultados desta continuação e eventual artefato devem ser informados com o
 commit/run efetivamente executados. O teste físico Windows + Iriun permanece
 pendente porque o ambiente do agente não tem esse dispositivo.
 
+### Resultado verificado e bloqueio para retomada
+
+- Commit da implementação: `be659f6b3b5cae0d94d8d1beee932ba24b4d0b9a`, enviado
+  ao fork na branch `fix/iriun-webcam-compat`.
+- g++ C++20 com `-Wall -Wextra -Werror -pedantic`: os oito cenários de
+  `webcam_backend_test` e todas as asserções de `webcam_format_test` passaram.
+- Suíte JavaScript executada nesta continuação: 306 arquivos aprovados,
+  4.263 testes aprovados e um ignorado. A primeira tentativa no sandbox restrito
+  foi interrompida após falhas nos testes que precisam de loopback/subprocessos;
+  a execução completa com as permissões locais necessárias passou (169,75 s).
+- TypeScript da aplicação e dos testes passou. Lint passou com 26 avisos
+  preexistentes; `docs:check`, sintaxe do verificador e actionlint 1.7.8 passaram.
+- O push iniciou o run
+  https://github.com/capitv/openscreen/actions/runs/37649856915
+  para o commit da implementação. **O job Windows não começou:** a anotação do
+  GitHub diz `The job was not started because your account is locked due to a
+  billing issue.` Não há erro de compilador para investigar nessa execução,
+  nem artefato experimental disponível. C++, STT, compositor e verificação do
+  aplicativo empacotado no Windows continuam sem execução nesta tarefa.
+- A API `api.github.com` também foi bloqueada pelo proxy do ambiente (CONNECT
+  403). A adição desse domínio foi salva no rascunho de configuração, preservando
+  os presets existentes; salvar o rascunho não aplica a política de rede.
+  Git fetch/push funcionam pela autenticação fornecida pela plataforma. As
+  páginas públicas do GitHub permitiram confirmar o run e sua anotação.
+- Retomar após o usuário resolver o bloqueio de Actions/faturamento da conta
+  `capitv`; reexecutar o run no fork, acompanhar seus logs e corrigir falhas
+  reais até obter o ZIP. Para controlar/reexecutar via CLI, aplicar também a
+  adição de `api.github.com` às configurações de rede. Não solicitar tokens em
+  chat, não alterar o upstream e não contornar o bloqueio com um runner pago.
+
 ## Objetivo do usuário
 
 O usuário quer gravar a tela com a câmera do celular fornecida pelo Iriun Webcam. O OpenScreen lista a Iriun, mas, ao iniciar a gravação, informa um problema com a câmera; o vídeo resultante fica sem webcam. A causa ainda não foi confirmada. Não há diagnóstico JSON, mensagem técnica completa ou confirmação de que a prévia funcione.
