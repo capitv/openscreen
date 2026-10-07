@@ -14,7 +14,7 @@ function Invoke-Checked {
     # and CMake also write ordinary warnings/progress there: only the process
     # exit code decides whether the native command failed. Keep Stop everywhere
     # else, and resolve the executable before temporarily changing the preference.
-    $application = Get-Command $Program -CommandType Application -ErrorAction Stop
+    $application = Get-Command $Program -CommandType Application -ErrorAction Stop | Select-Object -First 1
     $previousPreference = $ErrorActionPreference
     try {
         $ErrorActionPreference = 'Continue'

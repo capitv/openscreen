@@ -134,6 +134,13 @@ o setup, lança subprocessos e verifica aviso/exit 0, falha/exit 7, restauraçã
 inclusive no PowerShell 5.1 do runner. Não alterar loglevel do npm nem suprimir
 verificações para passar: acompanhar os próximos logs de compilação.
 
+O build https://ci.appveyor.com/project/capitv/openscreen/builds/54855296
+executou `c42fea0d` e aprovou esses testes no Windows PowerShell 5.1. Revelou em
+seguida que `Get-Command -CommandType Application` devolve os dois `node.exe`
+do PATH (portátil fixado e instalação da imagem). O wrapper agora seleciona
+explicitamente o primeiro resultado. O teste também cria dois comandos com
+o mesmo nome em diretórios distintos e exige a prioridade do primeiro PATH.
+
 ## Objetivo do usuário
 
 O usuário quer gravar a tela com a câmera do celular fornecida pelo Iriun Webcam. O OpenScreen lista a Iriun, mas, ao iniciar a gravação, informa um problema com a câmera; o vídeo resultante fica sem webcam. A causa ainda não foi confirmada. Não há diagnóstico JSON, mensagem técnica completa ou confirmação de que a prévia funcione.
