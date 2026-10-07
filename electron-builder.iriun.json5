@@ -1,0 +1,12 @@
+{
+  "extends": "./electron-builder.json5",
+  "appId": "com.capitv.openscreen.iriun-experimental",
+  "productName": "OpenScreen Iriun Experimental",
+  "extraMetadata": {
+    "name": "openscreen-iriun-experimental",
+    "productName": "OpenScreen Iriun Experimental",
+    "version": "2.0.0-iriun.1"
+  },
+  "publish": null,
+  "directories": { "output": "release/iriun-experimental" }
+}

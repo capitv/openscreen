@@ -1,6 +1,7 @@
 #include "webcam_capture.h"
 
 #include "realtime_scheduling.h"
+#include "webcam_backend.h"
 #include "webcam_format.h"
 
 #include <mfapi.h>
@@ -158,49 +159,36 @@ bool WebcamCapture::initialize(
     int requestedHeight,
     int requestedFps,
     bool preferNv12) {
+    stop();
     fps_ = std::clamp(requestedFps > 0 ? requestedFps : 30, 1, 60);
     usingDirectShow_ = false;
     selectedMatchScore_ = 0;
-    if (!succeeded(MFStartup(MF_VERSION), "MFStartup(webcam)")) {
-        if (directShowCapture_.initialize(deviceId, deviceName, directShowClsid, requestedWidth, requestedHeight, fps_)) {
-            usingDirectShow_ = true;
-            return true;
-        }
+    const auto backend = initializeWebcamBackend(
+        [&] {
+            if (!succeeded(MFStartup(MF_VERSION), "MFStartup(webcam)")) return false;
+            mfStarted_ = true;
+            if (!selectDevice(deviceId, deviceName)) return false;
+            if ((!deviceId.empty() || !deviceName.empty()) && selectedMatchScore_ <= 0) return false;
+            return configureReader(requestedWidth, requestedHeight, fps_, preferNv12);
+        },
+        [&] { stop(); },
+        [&] {
+            std::cerr << "WARNING: Media Foundation webcam initialization failed; trying DirectShow for the selected device"
+                      << std::endl;
+            // Keep the original identity. An absent/invalid CLSID fails in the
+            // DirectShow provider rather than substituting another camera.
+            return directShowCapture_.initialize(
+                deviceId, deviceName, directShowClsid, requestedWidth, requestedHeight, fps_);
+        });
+    usingDirectShow_ = backend == WebcamBackend::DirectShow;
+    if (backend == WebcamBackend::None) {
+        std::cerr << "ERROR: Both Windows webcam providers failed to initialize the selected device" << std::endl;
         return false;
     }
-    mfStarted_ = true;
-    if (!selectDevice(deviceId, deviceName)) {
-        if (mfStarted_) {
-            MFShutdown();
-            mfStarted_ = false;
-        }
-        if (directShowCapture_.initialize(deviceId, deviceName, directShowClsid, requestedWidth, requestedHeight, fps_)) {
-            usingDirectShow_ = true;
-            return true;
-        }
-        return false;
-    }
-
-    if ((!deviceId.empty() || !deviceName.empty()) && selectedMatchScore_ <= 0) {
-        if (mediaSource_) {
-            mediaSource_->Shutdown();
-        }
-        sourceReader_.Reset();
-        mediaSource_.Reset();
-        if (mfStarted_) {
-            MFShutdown();
-            mfStarted_ = false;
-        }
-        if (directShowCapture_.initialize(deviceId, deviceName, directShowClsid, requestedWidth, requestedHeight, fps_)) {
-            usingDirectShow_ = true;
-            return true;
-        }
-        std::cerr << "ERROR: Requested webcam device was not found by native Windows webcam providers"
-                  << std::endl;
-        return false;
-    }
-
-    return configureReader(requestedWidth, requestedHeight, fps_, preferNv12);
+    std::cerr << "INFO: Webcam backend " << (usingDirectShow_ ? "DirectShow" : "Media Foundation")
+              << " " << width() << "x" << height() << "@" << fps()
+              << " output=" << (deliversNv12() ? "NV12" : "BGRA") << std::endl;
+    return true;
 }
 
 bool WebcamCapture::selectDevice(const std::wstring& deviceId, const std::wstring& deviceName) {

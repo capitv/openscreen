@@ -1,5 +1,43 @@
 # Continuação no Codex: OpenScreen + Iriun Webcam no Windows
 
+## Progresso da implementação experimental (2026-10-07)
+
+O estado abaixo substitui a proposta histórica descrita no restante deste arquivo:
+
+- A proposta foi conferida com `git apply --check` antes das alterações. O código
+  ainda tinha o retorno direto de `configureReader`. A correção agora está no
+  C++, e `patches/iriun-webcam-fallback.patch` foi removido para não deixar uma
+  segunda alteração para aplicar por engano.
+- `WebcamCapture::initialize` usa uma única sequência MF -> limpeza -> DirectShow,
+  incluindo falhas de configuração do leitor. Uma segunda falha também libera os
+  recursos. A identidade original, o tamanho e o FPS solicitados continuam sendo
+  enviados ao DirectShow. Um CLSID ausente/inválido continua falhando sem escolher
+  outra câmera. O backend só é confirmado após sucesso, e seus getters existentes
+  mantêm o contrato BGRA do DirectShow mesmo quando NV12 foi solicitado ao MF.
+- `webcam_backend_test.cpp` cobre oito combinações de sucesso/falha nos estágios de
+  startup, seleção, configuração e fallback, incluindo ordem de limpeza e estado
+  de posse do dispositivo. Ele é compilado e executado pelo build nativo Windows,
+  e pode ser executado com g++ no Linux. Esses testes usam operações simuladas;
+  não comprovam o funcionamento de Media Foundation, COM ou do driver Iriun.
+- `.github/workflows/iriun-windows-experimental.yml` roda somente no fork,
+  somente Windows x64, automaticamente ao enviar estas alterações à branch ou
+  manualmente. Compila Whisper/STT com Vulkan e CPU a partir do mesmo checkout,
+  sem depender de artefatos STT que um fork novo não possui. Mantém os gates de
+  `before-pack.cjs`, verifica carregamento do STT/compositor com PATH mínimo e
+  testa o Studio no aplicativo empacotado antes de criar o ZIP.
+- `electron-builder.iriun.json5` mantém os recursos da configuração existente,
+  mas dá identidade/nome próprios ao experimento e não publica releases. O ZIP
+  inclui `Abrir-OpenScreen-Iriun.cmd`, que usa `data/` ao lado do aplicativo.
+  Projetos da instalação principal não são abertos nem migrados automaticamente.
+- A causa específica da Iriun continua sem confirmação. Se o MF inicializar mas
+  não entregar frames, ou se o DirectShow também falhar, esta correção de
+  inicialização pode não resolver. Os novos logs de backend/formato e os HRESULTs
+  existentes devem orientar a próxima tentativa.
+
+Resultados desta continuação e eventual artefato devem ser informados com o
+commit/run efetivamente executados. O teste físico Windows + Iriun permanece
+pendente porque o ambiente do agente não tem esse dispositivo.
+
 ## Objetivo do usuário
 
 O usuário quer gravar a tela com a câmera do celular fornecida pelo Iriun Webcam. O OpenScreen lista a Iriun, mas, ao iniciar a gravação, informa um problema com a câmera; o vídeo resultante fica sem webcam. A causa ainda não foi confirmada. Não há diagnóstico JSON, mensagem técnica completa ou confirmação de que a prévia funcione.

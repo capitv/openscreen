@@ -145,6 +145,9 @@ target_compile_definitions(webcam_format_test PRIVATE
 
 target_compile_options(webcam_format_test PRIVATE /EHsc /W4 /utf-8)
 
+add_executable(webcam_backend_test src/webcam_backend.h src/webcam_backend_test.cpp)
+target_compile_options(webcam_backend_test PRIVATE /EHsc /W4 /utf-8)
+
 add_executable(frame_visibility_test
   src/frame_visibility.cpp
   src/frame_visibility.h

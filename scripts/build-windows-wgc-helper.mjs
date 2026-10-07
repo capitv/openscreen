@@ -116,6 +116,13 @@ if (!fs.existsSync(webcamFormatTestPath)) {
 await run(webcamFormatTestPath, [], { cwd: BUILD_DIR });
 console.log(`Passed ${webcamFormatTestPath}`);
 
+const webcamBackendTestPath = path.join(BUILD_DIR, "webcam_backend_test.exe");
+if (!fs.existsSync(webcamBackendTestPath)) {
+	throw new Error(`WGC helper build completed but ${webcamBackendTestPath} was not found.`);
+}
+await run(webcamBackendTestPath, [], { cwd: BUILD_DIR });
+console.log(`Passed ${webcamBackendTestPath}`);
+
 const frameVisibilityTestPath = path.join(BUILD_DIR, "frame_visibility_test.exe");
 if (!fs.existsSync(frameVisibilityTestPath)) {
 	throw new Error(`WGC helper build completed but ${frameVisibilityTestPath} was not found.`);

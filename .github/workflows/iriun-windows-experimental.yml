@@ -1,0 +1,115 @@
+name: Iriun experimental Windows x64
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [fix/iriun-webcam-compat]
+    paths:
+      - electron/native/wgc-capture/**
+      - scripts/build-windows-wgc-helper.mjs
+      - scripts/verify-iriun-windows-build.mjs
+      - electron-builder.iriun.json5
+      - .github/workflows/iriun-windows-experimental.yml
+
+# This workflow uploads an Actions artifact only. It cannot create a release.
+permissions:
+  contents: read
+
+concurrency:
+  group: iriun-windows-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  windows:
+    if: github.repository == 'capitv/openscreen'
+    runs-on: windows-2025
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      WHISPER_STT_BUILD_ROOT: C:/wstbuild
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install pinned npm and locked dependencies
+        run: |
+          npm install --global npm@10.9.4
+          npm ci
+      - name: Check Windows native toolchains
+        run: |
+          set -euo pipefail
+          cmake --version
+          ninja --version
+          rustup default stable
+          cargo --version
+          test -f '/c/Program Files/LLVM/bin/libclang.dll'
+      - name: Typecheck application and tests
+        run: |
+          npx tsc --noEmit
+          npx tsc -p tsconfig.test.json --noEmit
+      - name: Install the same Vulkan SDK used by the STT workflow
+        uses: jakoch/install-vulkan-sdk-action@v1
+        with:
+          vulkan_version: 1.4.304.1
+          install_runtime: false
+          cache: true
+      - name: Configure Vulkan shader compiler and SPIRV-Headers
+        run: |
+          set -euo pipefail
+          for candidate in "${VULKAN_SDK}/Bin" "${VULKAN_SDK}/bin"; do
+            if [ -d "$candidate" ]; then echo "$candidate" >> "$GITHUB_PATH"; fi
+          done
+          VCPKG_ROOT_DIR="$(dirname "$(command -v vcpkg)")"
+          "${VCPKG_ROOT_DIR}/vcpkg" install spirv-headers:x64-windows
+          echo "CMAKE_PREFIX_PATH=${VCPKG_ROOT_DIR}/installed/x64-windows" >> "$GITHUB_ENV"
+      - name: Build Whisper STT and stage all sidecars from this checkout
+        run: bash scripts/build-whisper-stt.sh
+      - name: Build capture helpers and execute their native regression tests
+        run: npm run build:native:win
+      - name: Fetch verified native SDKs and stage the OpenMP runtime
+        run: |
+          npm run fetch:ffmpeg
+          npm run fetch:onnxruntime
+          npm run stage:vcomp
+      - name: Build the Windows compositor from this checkout
+        run: npm run build:native:compositor
+      - name: Build the renderer, main process and preload
+        run: npm run build-vite
+      - name: Package an isolated unpacked app with all existing packaging gates
+        run: npx electron-builder --config electron-builder.iriun.json5 --win --x64 --dir --publish never --config.npmRebuild=false
+      - name: Verify packaged helpers, STT, compositor and Electron Studio
+        run: node scripts/verify-iriun-windows-build.mjs
+      - name: Create test ZIP with its launcher and provenance
+        shell: pwsh
+        run: |
+          $package = 'release/iriun-experimental/win-unpacked'
+          @'
+          @echo off
+          cd /d "%~dp0"
+          start "" "OpenScreen Iriun Experimental.exe" --user-data-dir="%~dp0data"
+          '@ | Set-Content -Encoding ascii "$package/Abrir-OpenScreen-Iriun.cmd"
+          @'
+          Experimental Windows x64 build. Compatibility with Iriun is not confirmed.
+          Extract this ZIP to a writable folder and run Abrir-OpenScreen-Iriun.cmd.
+          This is not an installer; projects/settings/recordings stay in the data folder here.
+          Close other OpenScreen and camera-preview applications before testing the webcam.
+          After a failed attempt use tray > Save Diagnostics and retain the diagnostic bundle.
+          No release is published. This test build is unsigned.
+          '@ | Set-Content -Encoding utf8 "$package/LEIA-ME.txt"
+          @{ repository = '${{ github.repository }}'; commit = '${{ github.sha }}'; run = '${{ github.run_id }}'; iriunDeviceTest = 'not performed' } |
+            ConvertTo-Json | Set-Content -Encoding utf8 "$package/build-provenance.json"
+          $zip = "release/iriun-experimental/OpenScreen-Iriun-Experimental-Windows-x64-${{ github.sha }}.zip"
+          Compress-Archive -Path "$package/*" -DestinationPath $zip
+          Get-FileHash -Algorithm SHA256 $zip | Format-List
+      - name: Upload the ready-to-test ZIP
+        uses: actions/upload-artifact@v7
+        with:
+          name: OpenScreen-Iriun-Experimental-Windows-x64-${{ github.sha }}
+          path: release/iriun-experimental/OpenScreen-Iriun-Experimental-Windows-x64-*.zip
+          if-no-files-found: error
+          retention-days: 14
