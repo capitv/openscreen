@@ -19,6 +19,9 @@ environment:
 cache:
   - C:\osc-npm-cache -> package-lock.json
 
+before_build:
+  - ps: .\scripts\test-iriun-native-command.ps1
+
 build_script:
   - ps: . .\scripts\build-iriun-appveyor.ps1
 

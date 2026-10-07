@@ -114,6 +114,26 @@ a alternativa anunciada, mas não comprova que esta compilação cabe no prazo.
   ainda precisa ser salva/publicada pelo usuário nas configurações do ambiente.
   Não confundir o CONNECT 403 do proxy com falta de permissão na conta AppVeyor.
 
+### Retomada do AppVeyor: aviso do npm tratado como erro
+
+O projeto `capitv/openscreen` foi conectado pelo usuário e agora aponta para
+`fix/iriun-webcam-compat`. A API pública e os logs do AppVeyor estão acessíveis
+neste ambiente. O primeiro build usou `main` sem YAML; o build correto
+https://ci.appveyor.com/project/capitv/openscreen/builds/54855196
+usou `3115c817ce9dd45a52f1feba4036d64012a30622`, mas parou em `npm ci`, antes da
+compilação, quando Windows PowerShell 5.1 converteu `npm warn deprecated rimraf`
+em erro sob `$ErrorActionPreference = 'Stop'`.
+
+O wrapper `Invoke-Checked` agora resolve o executável com erro terminante,
+preserva a saída de stderr no log e usa `Continue` somente durante o processo
+nativo. Restaura a preferência em `finally` e exige código de saída zero. Erros
+PowerShell, downloads, hashes e todos os gates de empacotamento mantêm `Stop`.
+`scripts/test-iriun-native-command.ps1` importa a função real via AST sem executar
+o setup, lança subprocessos e verifica aviso/exit 0, falha/exit 7, restauração de
+`Stop` e executável inexistente. A YAML executa esse teste antes do build,
+inclusive no PowerShell 5.1 do runner. Não alterar loglevel do npm nem suprimir
+verificações para passar: acompanhar os próximos logs de compilação.
+
 ## Objetivo do usuário
 
 O usuário quer gravar a tela com a câmera do celular fornecida pelo Iriun Webcam. O OpenScreen lista a Iriun, mas, ao iniciar a gravação, informa um problema com a câmera; o vídeo resultante fica sem webcam. A causa ainda não foi confirmada. Não há diagnóstico JSON, mensagem técnica completa ou confirmação de que a prévia funcione.

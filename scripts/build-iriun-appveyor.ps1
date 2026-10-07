@@ -10,9 +10,21 @@ if ($env:OS -ne 'Windows_NT' -or $env:APPVEYOR_REPO_NAME -ne 'capitv/openscreen'
 function Invoke-Checked {
     param([string] $Program, [string[]] $StepArguments)
     Write-Host "Running: $Program $($StepArguments -join ' ')"
-    & $Program @StepArguments
-    if ($LASTEXITCODE -ne 0) {
-        throw "$Program failed with exit code $LASTEXITCODE"
+    # Windows PowerShell 5.1 turns native stderr into ErrorRecords. npm, Rust
+    # and CMake also write ordinary warnings/progress there: only the process
+    # exit code decides whether the native command failed. Keep Stop everywhere
+    # else, and resolve the executable before temporarily changing the preference.
+    $application = Get-Command $Program -CommandType Application -ErrorAction Stop
+    $previousPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        & $application.Source @StepArguments 2>&1 | ForEach-Object { Write-Host $_.ToString() }
+        $stepExitCode = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previousPreference
+    }
+    if ($stepExitCode -ne 0) {
+        throw "$Program failed with exit code $stepExitCode"
     }
 }
 
