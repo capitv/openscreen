@@ -1,0 +1,37 @@
+# Free OSS plan, standard Windows image, no release/deployment credentials.
+version: 2.0.0-iriun.{build}
+image: Visual Studio 2022
+clone_folder: C:\osc
+clone_depth: 1
+max_jobs: 1
+skip_tags: true
+branches:
+  only:
+    - fix/iriun-webcam-compat
+
+environment:
+  CSC_IDENTITY_AUTO_DISCOVERY: "false"
+  WHISPER_STT_BUILD_ROOT: C:/wstbuild
+  npm_config_cache: C:\osc-npm-cache
+
+# The free account has a 1 GB cache quota. Do not cache Cargo's multi-GB
+# target directory, the Vulkan SDK or the entire native build tree.
+cache:
+  - C:\osc-npm-cache -> package-lock.json
+
+build_script:
+  - ps: . .\scripts\build-iriun-appveyor.ps1
+
+# Custom tests replace automatic .NET discovery; all native regression tests
+# also run inside build:native:win. Packaging gates remain enabled.
+test_script:
+  - cmd: node scripts/verify-iriun-windows-build.mjs
+
+after_test:
+  - ps: . .\scripts\package-iriun-appveyor.ps1
+
+artifacts:
+  - path: release\iriun-experimental\OpenScreen-Iriun-Experimental-Windows-x64-*.zip
+    name: OpenScreen-Iriun-Experimental-Windows-x64
+
+deploy: off

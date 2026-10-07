@@ -68,6 +68,52 @@ pendente porque o ambiente do agente não tem esse dispositivo.
   adição de `api.github.com` às configurações de rede. Não solicitar tokens em
   chat, não alterar o upstream e não contornar o bloqueio com um runner pago.
 
+### Alternativa gratuita solicitada pelo usuário: AppVeyor
+
+O usuário informou que não quer pagar o débito do GitHub agora e autorizou buscar
+outro lugar para compilar. O plano OSS do AppVeyor anuncia projetos públicos
+gratuitos, uma execução por vez e limite de 60 minutos por job. Fontes oficiais:
+https://www.appveyor.com/pricing/ e
+https://www.appveyor.com/docs/build-environment/ . Como o proxy ainda bloqueia
+esses domínios, os conteúdos foram consultados no repositório oficial da própria
+documentação: https://github.com/appveyor/website/tree/master/src . Isso confirma
+a alternativa anunciada, mas não comprova que esta compilação cabe no prazo.
+
+- `appveyor.yml` usa a imagem padrão `Visual Studio 2022`, somente a branch
+  `fix/iriun-webcam-compat`, sem publicação de release/deploy. O script também
+  recusa outros repositórios e builds de pull request.
+- `scripts/build-iriun-appveyor.ps1` instala Node/npm fixados, Rust e o mesmo SDK
+  Vulkan na máquina do AppVeyor. Usa LLVM/MSVC já presentes na imagem, verifica
+  hashes dos downloads e instala os SPIRV-Headers Khronos correspondentes ao SDK
+  diretamente, pois o vcpkg dessa imagem é antigo. Compila Whisper/STT, captura
+  e compositor a partir do checkout; mantém todos os gates de `before-pack.cjs`.
+- Os testes nativos rodam no build, e `verify-iriun-windows-build.mjs` roda como
+  etapa de testes do AppVeyor. Somente depois deles o script
+  `package-iriun-appveyor.ps1` cria o ZIP com launcher/dados separados, commit e
+  identificação do job. A compatibilidade física com Iriun continua pendente.
+- Não guardar o target Rust nem o SDK no cache gratuito de 1 GB. A configuração
+  guarda somente os downloads do npm. Se o primeiro build exceder 60 minutos,
+  investigar o tempo real e dividir o trabalho mantendo proveniência e testes;
+  não migrar para uma máquina paga nem remover verificações.
+- Validações locais da alternativa: YAML/branch/imagem/etapa de testes e parser
+  PowerShell passaram. O wrapper de comandos foi exercitado com subprocessos
+  reais: sucesso e erro 7; o erro interrompeu a execução como exigido. Isso não
+  é uma compilação Windows. Os headers fixados foram configurados, compilados e
+  instalados com CMake 3.31.6 no Linux, confirmando a presença do pacote CMake;
+  o lint passou com os 26 avisos existentes, e `docs:check` passou. A suíte da
+  correção já foi executada anteriormente, conforme o resultado acima;
+  não anunciar uma nova execução completa.
+- A conta/projeto AppVeyor ainda não foi criada ou autorizada nesta tarefa.
+  O usuário precisa entrar em https://ci.appveyor.com/signup/free , conectar o
+  GitHub e adicionar **somente** `capitv/openscreen` em **New project**. Iniciar
+  **New build** selecionando `fix/iriun-webcam-compat` (a YAML está nessa branch,
+  não na `main`). Não pedir senha/token em chat.
+- Para o agente acompanhar logs e artefatos, `ci.appveyor.com` e
+  `www.appveyor.com` foram adicionados ao rascunho de rede, preservando a entrada
+  anterior `api.github.com` e os presets. O save foi confirmado; a política
+  ainda precisa ser salva/publicada pelo usuário nas configurações do ambiente.
+  Não confundir o CONNECT 403 do proxy com falta de permissão na conta AppVeyor.
+
 ## Objetivo do usuário
 
 O usuário quer gravar a tela com a câmera do celular fornecida pelo Iriun Webcam. O OpenScreen lista a Iriun, mas, ao iniciar a gravação, informa um problema com a câmera; o vídeo resultante fica sem webcam. A causa ainda não foi confirmada. Não há diagnóstico JSON, mensagem técnica completa ou confirmação de que a prévia funcione.
