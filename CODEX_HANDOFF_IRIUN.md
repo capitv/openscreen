@@ -38,7 +38,57 @@ Resultados desta continuação e eventual artefato devem ser informados com o
 commit/run efetivamente executados. O teste físico Windows + Iriun permanece
 pendente porque o ambiente do agente não tem esse dispositivo.
 
-### Resultado verificado e bloqueio para retomada
+### Windows x64 concluído no AppVeyor
+
+O bloqueio de faturamento do GitHub Actions foi evitado usando o AppVeyor OSS
+gratuito autorizado pelo usuário. Este resultado substitui os bloqueios históricos
+descritos abaixo; não é necessário pagar o GitHub para baixar este experimento.
+
+- Fonte do ZIP: `50a34c3eef97e8ba46b5d1027de6269e0d465372`, no fork e na branch
+  `fix/iriun-webcam-compat`. A implementação C++ vem de `be659f6b`.
+- Build `2.0.0-iriun.5`, job `iabc10h69lgs033x`: **success**, em 41 min 25 s,
+  na imagem padrão `Visual Studio 2022`.
+  https://ci.appveyor.com/project/capitv/openscreen/builds/54855369
+- Artefato publicado, confirmado na API: 244.398.738 bytes.
+  https://ci.appveyor.com/api/buildjobs/iabc10h69lgs033x/artifacts/release/iriun-experimental/OpenScreen-Iriun-Experimental-Windows-x64-50a34c3eef97e8ba46b5d1027de6269e0d465372.zip
+- SHA-256 registrado no runner após criar o ZIP:
+  `2215f5dbb7bcfd9246f36baaf38c9f57acb1a2bd8a2059ecd41b4ccf70ee1c63`.
+- Executados no Windows: cinco grupos de regressão PowerShell; `npm ci`;
+  TypeScript da aplicação e dos testes; compilação C++ e os testes nativos,
+  incluindo os oito cenários simulados de fallback e 122 testes de áudio.
+  Formatos, visibilidade, relógio de frames e snapshot da webcam passaram.
+  A referência de cor BT.709 passou; a parte `mf-encoder-color` foi **SKIP**
+  porque `ffprobe/ffmpeg` não estavam no PATH nesse momento. Não contar essa
+  parte como teste de encode/decode aprovado.
+- Whisper/STT CPU + Vulkan e compositor Rust foram compilados do checkout;
+  FFmpeg, ONNX Runtime e redistribuíveis MSVC foram preparados. Vite e
+  electron-builder concluíram mantendo os gates de empacotamento.
+- Executados contra o pacote Windows: comparação SHA-256 dos binários nativos
+  com os recém-preparados; STT carregou com PATH mínimo e devolveu o erro de
+  modelo inexistente deliberadamente solicitado; compositor carregou dentro
+  do Electron; HUD abriu o Studio com diretório de dados temporário isolado.
+  Isso não testa inferência STT, captura real, preview/render/export ou Iriun.
+- O ZIP inclui `Abrir-OpenScreen-Iriun.cmd`, `LEIA-ME.txt` e
+  `build-provenance.json`. Extrair em pasta gravável e usar o launcher mantém
+  projetos/configurações/gravações em `data/` ao lado do experimento.
+  Não houve instalação no computador do usuário nem release pública.
+- A API confirmou o upload e o link público devolveu HTTP 302 para o arquivo.
+  O download adicional no ambiente do agente foi bloqueado pelo proxy (CONNECT
+  403) no host abaixo. O hash acima é o do CI, não uma segunda conferência do
+  download local; o CRC/conteúdo do ZIP baixado não foi verificado aqui.
+  `appveyor-artifacts-enam.7b474ce6bd9813bd1e711f7cdc19151f.r2.cloudflarestorage.com`
+  Esse domínio foi acrescentado ao rascunho de rede preservando os demais;
+  para essa conferência adicional, revisar/salvar as configurações e publicar
+  o ambiente. Salvar o rascunho não aplica a regra. O download no PC do usuário
+  não depende da política de rede deste ambiente.
+- Os testes anteriores ao compositor foram observados ao vivo. O log final
+  fornecido pela API começa nos avisos extensos dos bindings FFmpeg, em 36:39;
+  não presumir que esse retorno final contenha o início completo da execução.
+- **Teste físico com Iriun ainda pendente.** Fazer uma gravação curta usando
+  esta build e a câmera selecionada. Se falhar, guardar `Save Diagnostics`
+  imediatamente após a tentativa para investigar a causa concreta.
+
+### Histórico: testes locais e bloqueio do GitHub Actions
 
 - Commit da implementação: `be659f6b3b5cae0d94d8d1beee932ba24b4d0b9a`, enviado
   ao fork na branch `fix/iriun-webcam-compat`.
